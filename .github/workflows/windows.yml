@@ -57,4 +57,5 @@ jobs:
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ env.ARTIFACT }}
+          name: ${{ env.ARTIFACT }}
+          files: dist
