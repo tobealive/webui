@@ -66,6 +66,7 @@ jobs:
             CC=arm-linux-gnueabihf-gcc
           fi
           echo "CC=$CC" >> $GITHUB_ENV
+          find /usr/lib/**/openssl*
       - name: Build Debug Target
         run: make CC="$CC" debug
       - name: Build Release Target
