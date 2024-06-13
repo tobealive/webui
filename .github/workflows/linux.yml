@@ -59,10 +59,14 @@ jobs:
             sudo ln -s llvm-ranlib-14 /usr/bin/llvm-ranlib
             sudo ln -s llvm-strip-14 /usr/bin/llvm-strip
           elif [ "${{ matrix.arch }}" == "arm64" ]; then
-            sudo apt install gcc-aarch64-linux-gnu
+            sudo apt -qq install gcc-aarch64-linux-gnu
+            sudo apt -qq install openssl:armhf
+            sudo apt -qq install libssl-dev:armhf
             CC=aarch64-linux-gnu-gcc
           elif [ "${{ matrix.arch }}" == "arm" ]; then
-            sudo apt install gcc-arm-linux-gnueabihf
+            sudo apt -qq install gcc-arm-linux-gnueabihf
+            sudo apt -qq install openssl:armhf
+            sudo apt -qq install libssl-dev:armhf
             CC=arm-linux-gnueabihf-gcc
           fi
           echo "CC=$CC" >> $GITHUB_ENV
@@ -73,10 +77,8 @@ jobs:
         if: ${{ !cancelled() }}
         run: make CC="$CC"
       - name: Build TLS Debug Target
-        if: matrix.arch == 'x64'
         run: make CC="$CC" WEBUI_USE_TLS=1 debug
       - name: Build TLS Release Target
-        if: matrix.arch == 'x64'
         run: make CC="$CC" WEBUI_USE_TLS=1
       - name: Build examples
         if: matrix.arch == 'x64'
