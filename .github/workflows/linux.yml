@@ -46,11 +46,13 @@ jobs:
       ARTIFACT: webui-linux-${{ matrix.cc }}-${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/cache/restore@v4
         with:
           path: bridge/webui_bridge.h
           key: ${{ runner.os }}-${{ github.sha }}-bridge
           fail-on-cache-miss: true
+
       - name: Setup
         run: |
           CC=${{ matrix.cc }}
@@ -66,17 +68,22 @@ jobs:
             CC=arm-linux-gnueabihf-gcc
           fi
           echo "CC=$CC" >> $GITHUB_ENV
+
       - name: Build Debug Target
         run: make CC="$CC" debug
+
       - name: Build Release Target
         if: ${{ !cancelled() }}
         run: make CC="$CC"
+
       - name: Build TLS Debug Target
         if: matrix.arch == 'x64'
         run: make CC="$CC" WEBUI_USE_TLS=1 debug
+
       - name: Build TLS Release Target
         if: matrix.arch == 'x64'
         run: make CC="$CC" WEBUI_USE_TLS=1
+
       - name: Build Examples
         if: matrix.arch == 'x64'
         run: |
@@ -96,9 +103,11 @@ jobs:
             fi
           done
           exit $exit_code
+
       - name: Setup Browser
         if: matrix.arch == 'x64'
         uses: browser-actions/setup-chrome@v1
+
       - name: Setup Tests
         if: matrix.arch == 'x64'
         run: |
@@ -107,6 +116,7 @@ jobs:
           make call_c_from_js.c
           make fail_test.c
           ls -1
+
       - name: Test Static
         if: matrix.arch == 'x64'
         timeout-minutes: 2
@@ -119,6 +129,7 @@ jobs:
           output=$(xvfb-run --auto-servernum --server-num=1 "$call_c_from_js")
           [[ "$output" == *"Hello from the backend!"* ]] && true || exit 1
           xvfb-run --auto-servernum --server-num=1 "$fail_test" && exit 1 || true
+
       - name: Test Dynamic
         if: matrix.arch == 'x64'
         timeout-minutes: 2
@@ -130,15 +141,18 @@ jobs:
           output=$(xvfb-run --auto-servernum --server-num=1 "$call_c_from_js")
           [[ "$output" == *"Hello from the backend!"* ]] && true || exit 1
           xvfb-run --auto-servernum --server-num=1 "$fail_test" && exit 1 || true
+
       - name: Prepare Artifact
         run: |
           cp -r include dist
           mv dist/ "$ARTIFACT"
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ env.ARTIFACT }}
+
       - name: Prepare Release
         if: github.repository_owner == 'webui-dev' && github.ref_name == 'main' && github.event_name == 'push'
         run: |
@@ -153,6 +167,7 @@ jobs:
               echo "BODY=Generated from commit $GITHUB_SHA."
             } >> $GITHUB_ENV
           fi
+
       - name: Update Nightly Tag
         if: env.IS_PRERELEASE
         uses: richardsimko/update-tag@v1
@@ -160,6 +175,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: nightly
+
       - name: Release
         if: >
           github.repository_owner == 'webui-dev'

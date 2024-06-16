@@ -39,24 +39,31 @@ jobs:
       ARTIFACT: webui-macos-${{ matrix.cc }}-${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/cache/restore@v4
         with:
           path: bridge/webui_bridge.h
           key: ${{ runner.os }}-${{ github.sha }}-bridge
           fail-on-cache-miss: true
+
       - name: Setup OpenSSL
         run: |
           echo "OPENSSL_CFLAGS=$(brew --cellar)/openssl@1.1/1.1.1w/include/" >> $GITHUB_ENV
           echo "OPENSSL_LDFLAGS=$(brew --cellar)/openssl@1.1/1.1.1w/lib/" >> $GITHUB_ENV
+
       - name: Build Debug Target
         run: make ARCH_TARGET=${{ matrix.arch }} debug
+
       - name: Build Release Target
         if: ${{ !cancelled() }}
         run: make ARCH_TARGET=${{ matrix.arch }}
+
       - name: Build TLS Debug Target
         run: make WEBUI_USE_TLS=1 WEBUI_TLS_INCLUDE="$OPENSSL_CFLAGS" WEBUI_TLS_LIB="$OPENSSL_LDFLAGS" debug
+
       - name: Build TLS Release Target
         run: make WEBUI_USE_TLS=1 WEBUI_TLS_INCLUDE="$OPENSSL_CFLAGS" WEBUI_TLS_LIB="$OPENSSL_LDFLAGS"
+
       - name: Build examples
         run: |
           examples_base_dir=$(pwd)/examples/C
@@ -75,15 +82,18 @@ jobs:
             fi
           done
           exit $exit_code
+
       - name: Prepare Artifacts
         run: |
           cp -r include dist
           mv dist/ "$ARTIFACT"
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ env.ARTIFACT }}
+
       - name: Prepare Release
         if: >
           github.repository_owner == 'webui-dev'
@@ -100,6 +110,7 @@ jobs:
               echo "BODY=Generated from commit $GITHUB_SHA."
             } >> $GITHUB_ENV
           fi
+
       - name: Update Nightly Tag
         if: env.IS_PRERELEASE
         uses: richardsimko/update-tag@v1
@@ -107,6 +118,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: nightly
+
       - name: Release
         if: >
           github.repository_owner == 'webui-dev'
