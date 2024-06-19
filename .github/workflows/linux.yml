@@ -77,6 +77,46 @@ jobs:
       - name: Build TLS Release Target
         if: matrix.arch == 'x64'
         run: make WEBUI_USE_TLS=1
+      - name: Prepare Artifact
+        run: |
+          cp -r include dist
+          mv dist/ "$ARTIFACT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: ${{ env.ARTIFACT }}
+      - uses: actions/cache/save@v4
+        with:
+          path: |
+            bridge/webui_bridge.h
+            ${{ env.ARTIFACT }}
+          key: ${{ runner.os }}-${{ github.sha }}-bridge
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        cc: [gcc, clang]
+      fail-fast: false
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: bridge/webui_bridge.h
+          key: ${{ runner.os }}-${{ github.sha }}-bridge
+          fail-on-cache-miss: true
+      - name: Setup
+        if: matrix.cc == 'clang'
+        run: |
+          sudo ln -s llvm-ar-14 /usr/bin/llvm-ar
+          sudo ln -s llvm-ranlib-14 /usr/bin/llvm-ranlib
+          sudo ln -s llvm-strip-14 /usr/bin/llvm-strip
       - name: Build Examples
         if: matrix.arch == 'x64'
         run: |
@@ -97,18 +137,14 @@ jobs:
           done
           exit $exit_code
       - name: Setup Browser
-        if: matrix.arch == 'x64'
         uses: browser-actions/setup-chrome@v1
       - name: Setup Tests
-        if: matrix.arch == 'x64'
         run: |
-          sudo apt update && sudo apt install xvfb
           cd tests
           make call_c_from_js.c
           make fail_test.c
           ls -1
       - name: Test Static
-        if: matrix.arch == 'x64'
         timeout-minutes: 2
         run: |
           cd tests
@@ -120,7 +156,6 @@ jobs:
           [[ "$output" == *"Hello from the backend!"* ]] && true || exit 1
           xvfb-run --auto-servernum --server-num=1 "$fail_test" && exit 1 || true
       - name: Test Dynamic
-        if: matrix.arch == 'x64'
         timeout-minutes: 2
         run: |
           cd tests
@@ -130,15 +165,27 @@ jobs:
           output=$(xvfb-run --auto-servernum --server-num=1 "$call_c_from_js")
           [[ "$output" == *"Hello from the backend!"* ]] && true || exit 1
           xvfb-run --auto-servernum --server-num=1 "$fail_test" && exit 1 || true
-      - name: Prepare Artifact
-        run: |
-          cp -r include dist
-          mv dist/ "$ARTIFACT"
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ARTIFACT }}
-          path: ${{ env.ARTIFACT }}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - cc: gcc
+            arch: x64
+          - cc: gcc
+            arch: arm64
+          - cc: gcc
+            arch: arm
+          - cc: clang
+            arch: x64
+    env:
+      ARTIFACT: webui-linux-${{ matrix.cc }}-${{ matrix.arch }}
+    steps:
+      - uses: actions/download-artifact@v4
       - name: Prepare Release
         if: github.repository_owner == 'webui-dev' && github.ref_name == 'main' && github.event_name == 'push'
         run: |
