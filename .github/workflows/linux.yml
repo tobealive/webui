@@ -27,11 +27,12 @@ jobs:
 
   build:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
     strategy:
       matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
         include:
           - cc: gcc
             arch: x64
@@ -54,6 +55,9 @@ jobs:
             sudo ln -s llvm-ar-14 /usr/bin/llvm-ar
             sudo ln -s llvm-ranlib-14 /usr/bin/llvm-ranlib
             sudo ln -s llvm-strip-14 /usr/bin/llvm-strip
+          fi
+          if [ "${{ matrix.os }}" == "ubuntu-24.04" && "${{ matrix.cc }}" == "gcc" ]; then
+            sudo apt -qq install gcc-14
           fi
           echo "CC=$CC" >> $GITHUB_ENV
       - name: Build Debug Target
@@ -118,13 +122,15 @@ jobs:
           cp -r include dist
           mv dist/ "$ARTIFACT"
       - name: Upload Artifact
+        if: ${{ matrix.os == 'ubuntu-22.04' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ env.ARTIFACT }}
       - name: Prepare Release
         if: >
-          github.repository_owner == 'webui-dev'
+          ${{ matrix.os == 'ubuntu-22.04' }}
+          && github.repository_owner == 'webui-dev'
           && (github.ref_type == 'tag' || (github.ref_name == 'main' && github.event_name == 'push'))
         run: |
           zip -r "$ARTIFACT.zip" "$ARTIFACT"
@@ -139,7 +145,7 @@ jobs:
             } >> $GITHUB_ENV
           fi
       - name: Update Nightly Tag
-        if: env.IS_PRERELEASE
+        if: ${{ matrix.os == 'ubuntu-22.04' }} && env.IS_PRERELEASE
         uses: richardsimko/update-tag@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -147,7 +153,8 @@ jobs:
           tag_name: nightly
       - name: Release
         if: >
-          github.repository_owner == 'webui-dev'
+          ${{ matrix.os == 'ubuntu-22.04' }}
+          && github.repository_owner == 'webui-dev'
           && (github.ref_type == 'tag' || (github.ref_name == 'main' && github.event_name == 'push'))
         uses: ncipollo/release-action@v1
         with:
